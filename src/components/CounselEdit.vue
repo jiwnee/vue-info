@@ -13,7 +13,11 @@
 
           <v-container fluid class="py-0">
             <v-row justify="center" class="my-2">
-              <v-icon class="ma-1 mdi-36px" v-if="mode === 'view'" @click="prevWeek()">mdi-chevron-left</v-icon>
+              <v-icon
+                class="ma-1 mdi-36px"
+                v-if="mode === 'view'"
+                @click="prevWeek()"
+              >mdi-chevron-left</v-icon>
 
               <span class="ma-2 title">
                 {{$moment(dateStart).format('YYYY-MM-DD')}}
@@ -21,7 +25,11 @@
                 {{$moment(dateEnd).format('YYYY-MM-DD')}}
               </span>
 
-              <v-icon class="ma-1 mdi-36px" v-if="mode === 'view'" @click="nextWeek()">mdi-chevron-right</v-icon>
+              <v-icon
+                class="ma-1 mdi-36px"
+                v-if="mode === 'view'"
+                @click="nextWeek()"
+              >mdi-chevron-right</v-icon>
             </v-row>
 
             <v-simple-table class="table-border" v-if="!isLoading">
@@ -29,13 +37,11 @@
                 <tbody>
                   <tr class="table-header">
                     <td rowspan="2" width="200">구분</td>
-                    <td class="red--text">월</td>
-                    <td>화</td>
-                    <td>수</td>
-                    <td>목</td>
-                    <td>금</td>
-                    <td>토</td>
-                    <td>일</td>
+                    <td
+                      v-for="(day, index) in days"
+                      :key="'day'+index"
+                      :class="day.type === 'H' ? 'red--text' : ''"
+                    >{{day.dayNm}}</td>
                   </tr>
 
                   <tr class="table-header">
@@ -49,16 +55,16 @@
                   <tr v-for="(time, index) in times" :key="'time'+index">
                     <td class="text-center">{{time.text}}</td>
                     <td v-for="(counsel, key, idx) in dayCounselInfo" :key="'data'+counsel.ymd+idx">
-                      <v-combobox
+                      <v-text-field
                         v-if="mode === 'edit'"
-                        :items="selItems"
-                        :item-value="Number"
-                        :rules="countRules"
+                        type="number"
+                        min="0"
+                        :rules="[countRules.valid, countRules.count(counsel[time.type]['rCnt'])]"
                         v-model="counsel[time.type]['count']"
                         hide-details
                         dense
                         outlined
-                      ></v-combobox>
+                      ></v-text-field>
                       <p v-else class="text-center">{{ counsel[time.type]['count'] }}</p>
                     </td>
                   </tr>
@@ -89,9 +95,12 @@
               </v-btn>
             </v-row>
             <v-row justify="center" class="my-2" v-else>
-              <v-btn class="ma-1" color="secondary"
+              <v-btn
+                class="ma-1"
+                color="secondary"
                 v-if="mode === 'view'"
-                @click="changeEditMode('edit')">
+                @click="changeEditMode('edit')"
+              >
                 <v-icon>mdi-table-edit</v-icon>&nbsp;수정
               </v-btn>
             </v-row>
@@ -121,32 +130,39 @@
 export default {
   data() {
     return {
-      mode: 'view',
+      mode: "view",
       isLoading: true,
       snackbar: false,
-      snackbar_color: '',
-      snackbar_text: '',
+      snackbar_color: "",
+      snackbar_text: "",
       todayMonth: 0,
       todayWeek: 0,
-      currentIdx: 0,  // 주간 날짜 계산용
-      dateStart: '',
-      dateEnd: '',
+      currentIdx: 0, // 주간 날짜 계산용
+      dateStart: "",
+      dateEnd: "",
       days: [], // 주간 날짜
       times: [
-        {text: '10:30 ~ 12:00', type: 1},
-        {text: '13:00 ~ 14:30', type: 2},
-        {text: '15:00 ~ 16:30', type: 3},
-        {text: '17:00 ~ 18:30', type: 4}
+        { text: "10:30 ~ 12:00", type: 1 },
+        { text: "13:00 ~ 14:30", type: 2 },
+        { text: "15:00 ~ 16:30", type: 3 },
+        { text: "17:00 ~ 18:30", type: 4 }
       ],
-      selItems: [0, 1, 2, 3],
-      countRules: [
-        value => {
-          return (typeof Number.parseInt(value) === 'number' && (value <= 3)) || false
+      countRules: {
+        valid: v => {
+          return (typeof Number.parseInt(v) === "number" && v > -1) || false;
+        },
+        count(rCnt) {
+          return v => v >= rCnt || "초과";
         }
-      ],  // 횟수 콤보박스 유효성 체크
+      }, // 횟수 유효성 체크
+      // [
+      //   value => {
+      //     return (typeof Number.parseInt(value) === 'number' && value > -1) || false
+      //   }
+      // ],
       dayCounselInfo: {}, // 날짜별 상담 데이터
       tmpCounselInfo: {}, // 수정 페이지 리셋용
-      counselList: [],  // DB 저장된 데이터
+      counselList: [] // DB 저장된 데이터
     };
   },
 
@@ -172,9 +188,9 @@ export default {
      */
     dayCounselCount() {
       let arr = [];
-      for(let [key, value] of Object.entries(this.dayCounselInfo)) {
+      for (let [key, value] of Object.entries(this.dayCounselInfo)) {
         let cnt = 0;
-        for(let [k, v] of Object.entries(value)) {
+        for (let [k, v] of Object.entries(value)) {
           cnt += Number.parseInt(v.count);
         }
         arr.push(cnt);
@@ -210,11 +226,14 @@ export default {
      */
     calDate() {
       this.days = [];
-      const dateToday = this.$moment().add(this.currentIdx, 'days');
+      const dateToday = this.$moment().add(this.currentIdx, "days");
       // 주간 시작일
-      this.dateStart = dateToday.day(1).format('YYYYMMDD');
+      this.dateStart = dateToday.day(1).format("YYYYMMDD");
       // 주간 종료일
-      this.dateEnd = dateToday.day(1).add(6, 'days').format('YYYYMMDD');
+      this.dateEnd = dateToday
+        .day(1)
+        .add(6, "days")
+        .format("YYYYMMDD");
 
       this.getCounselData();
     },
@@ -226,120 +245,19 @@ export default {
       const data = {
         bgnDt: this.dateStart,
         endDt: this.dateEnd
-      }
-      // this.$sendApi('/counsel/counselList', data)
-      //   .then(response => {
-      //     if (response.data.isSuccess == true) {
-      //       this.isLoading = false;
-      //       console.log(response.data)
-      //       this.days = response.data.calendarList;
-      //       this.counselList = response.data.counselList;
-      //       this.fetchData();
-      //     }
-      //   })
-      //   .catch(error => {
-      //     // this.openSnackbar(
-      //     //   0,
-      //     //   "데이터 조회 중 오류가 발생했습니다."
-      //     // );
-      //   });
-      for (let i = 0; i <= 6; i++) {
-        const day = this.$moment(this.dateStart).add(i, 'days');
-        let type = 'D'; // 주간
-        switch (i) {
-          case 0:
-            type = 'H'; // 휴일
-            break;
-          case 5:
-          case 6:
-            type = 'W'; // 주말
-            break;
-        }
-        this.days.push({ymd: this.$moment(day).format('YYYYMMDD'), type: type});
-      }
-      this.counselList = [
-        {
-          "counselIdx": 0,
-          "counselDay": "20200429",
-          "timePeriod": 1,
-          "aCnt": 1,
-          "rCnt": 1,
-          "counselTotal": 0
-        },
-        {
-          "counselIdx": 0,
-          "counselDay": "20200429",
-          "timePeriod": 2,
-          "aCnt": 3,
-          "rCnt": 0,
-          "counselTotal": 0
-        },
-        {
-          "counselIdx": 0,
-          "counselDay": "20200429",
-          "timePeriod": 3,
-          "aCnt": 1,
-          "rCnt": 0,
-          "counselTotal": 0
-        },
-        {
-          "counselIdx": 0,
-          "counselDay": "20200502",
-          "timePeriod": 2,
-          "aCnt": 1,
-          "rCnt": 0,
-          "counselTotal": 0
-        },
-        {
-          "counselIdx": 0,
-          "counselDay": "20200503",
-          "timePeriod": 1,
-          "aCnt": 1,
-          "rCnt": 0,
-          "counselTotal": 0
-        },
-        {
-          "counselIdx": 0,
-          "counselDay": "20200503",
-          "timePeriod": 3,
-          "aCnt": 1,
-          "rCnt": 0,
-          "counselTotal": 0
-        },
-        {
-          "counselIdx": 0,
-          "counselDay": "20200504",
-          "timePeriod": 1,
-          "aCnt": 1,
-          "rCnt": 0,
-          "counselTotal": 0
-        },
-        {
-          "counselIdx": 0,
-          "counselDay": "20200504",
-          "timePeriod": 2,
-          "aCnt": 0,
-          "rCnt": 1,
-          "counselTotal": 0
-        },
-        {
-          "counselIdx": 0,
-          "counselDay": "20200504",
-          "timePeriod": 3,
-          "aCnt": 2,
-          "rCnt": 0,
-          "counselTotal": 0
-        },
-        {
-          "counselIdx": 0,
-          "counselDay": "20200504",
-          "timePeriod": 4,
-          "aCnt": 1,
-          "rCnt": 0,
-          "counselTotal": 0
-        }
-      ];
-      this.fetchData();
+      };
+      this.$sendApi("/counsel/counselList", data)
+        .then(response => {
+          if (response.data.isSuccess == true) {
+            // console.log(response.data)
+            this.days = response.data.calendarList;
+            this.counselList = response.data.counselList;
+            this.fetchData();
+          }
+        })
+        .catch(error => {
+          this.openSnackbar(0, "데이터 조회 중 오류가 발생했습니다.");
+        });
     },
 
     /**
@@ -347,12 +265,12 @@ export default {
      */
     fetchData() {
       this.days = this.days.map(day => {
-        let type = 'D'; // 주간
-        if(day.weekEndYn === 'Y') type = 'W'; // 주말
-        if(day.dayNm === '월' || day.hodyYn === 'Y') type = 'H'; // 휴일 (월요일 휴관)
+        let type = "D"; // 주간
+        if (day.weekEndYn === "Y") type = "W"; // 주말
+        if (day.dayNm === "월" || day.hodyYn === "Y") type = "H"; // 휴일 (월요일 휴관)
         day.type = type;
         return day;
-      })
+      });
       this.createCounselInfo();
     },
 
@@ -367,33 +285,61 @@ export default {
           let count = 0;
           let rCnt = 0;
           // 수정화면에서 데이터 없을 경우에만 초기 데이터 셋팅
-          if (this.mode === 'edit' && !this.isCounselData) {
-            if(day.type === 'D' && index > 1) count = 2;
-            if(day.type === 'W' && index > 0) count = 3;
+          if (this.mode === "edit" && !this.isCounselData) {
+            if (day.type === "D" && index > 1) count = 2;
+            if (day.type === "W" && index > 0) count = 3;
           } else if (this.isCounselData) {
             const data = this.counselList.filter(d => {
-              return d.counselDay === day.ymd && d.timePeriod === (index + 1);
+              return d.counselDay === day.ymd && d.timePeriod === index + 1;
             })[0];
             if (data) {
-              count = Number.parseInt(data.aCnt) + Number.parseInt(data.rCnt) || 0;
+              count =
+                Number.parseInt(data.aCnt) + Number.parseInt(data.rCnt) || 0;
               rCnt = Number.parseInt(data.rCnt) || 0;
             }
           }
 
           dayData[time.type] = {
             count: count,
-            rCnt: rCnt
-          }
+            rCnt: rCnt // 현재 예약되어있는 개수
+          };
         });
         dataMap[day.ymd] = dayData;
       });
       this.dayCounselInfo = dataMap;
-
       this.isLoading = false;
     },
 
     save() {
-      console.log(this.dayCounselInfo);
+      // validation
+
+      if (this.mode !== "edit" || !confirm("저장하시겠습니까?")) return;
+      let counselData = [];
+      for (let [key, value] of Object.entries(this.dayCounselInfo)) {
+        for (let [k, v] of Object.entries(value)) {
+          // 유효성 체크
+          if (v < 0) continue;
+          counselData.push({
+            counselDay: key,
+            timePeriod: k,
+            counselTotal: v.count
+          });
+        }
+      }
+      console.log(counselData);
+
+      this.$sendApi("/counsel/counselInsertProc", { counselData: counselData })
+        .then(response => {
+          if (response.data.isSuccess == true) {
+            console.log(response.data);
+            this.mode = "view";
+            this.openSnackbar(1, "Success");
+            this.getCounselData();
+          }
+        })
+        .catch(error => {
+          this.openSnackbar(0, "데이터 저장 중 오류가 발생했습니다.");
+        });
     },
 
     prevWeek() {
@@ -412,12 +358,25 @@ export default {
 
     changeEditMode(mode) {
       this.mode = mode;
-      if(mode === 'view') {
+      if (mode === "view") {
         this.resetData();
       } else {
         // 초기화할 데이터 저장
         this.tmpCounselInfo = _.cloneDeep(this.dayCounselInfo);
         this.createCounselInfo();
+      }
+    },
+
+    /* 알림 메시지 */
+    openSnackbar(result, msg) {
+      if (result == 1) {
+        this.snackbar = true;
+        this.snackbar_text = msg;
+        this.snackbar_color = "success";
+      } else {
+        this.snackbar = true;
+        this.snackbar_text = msg;
+        this.snackbar_color = "error";
       }
     }
   }
