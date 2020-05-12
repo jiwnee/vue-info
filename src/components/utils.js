@@ -1,4 +1,4 @@
-const utils = {
+let utils = {
     isMobile: function() {
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
             navigator.userAgent
@@ -34,6 +34,7 @@ const utils = {
         return data.replace(strCheck, "");
     },
 
+    /* 엑셀 다운로드 */
     exportCSVFile(fileName, headers, list) {
         let contents = "";
         let headerColumn = [];
@@ -65,6 +66,23 @@ const utils = {
         pom.href = url;
         pom.setAttribute("download", fileName);
         pom.click();
+    },
+
+    storage: window.localStorage || window.sessionStorage,
+
+    /* 공휴일 정보 갖고오기 */
+    getHolidays() {
+        return JSON.parse(this.storage.getItem("holidays")) || [];
+    },
+
+    /* YYYYMMDD -> YYYY-MM-DD */
+    printFormat(date) {
+        if (date) {
+            return date.replace(/(\d{4})(\d{2})(\d{2})/g, "$1-$2-$3");
+        } else {
+            return "";
+        }
     }
 };
-module.exports = utils;
+
+export default utils;

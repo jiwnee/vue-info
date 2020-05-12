@@ -1,3 +1,4 @@
+<!-- 크루 관리 > 크루 근무표 -->
 <template>
   <v-app>
     <!-- <CommonToolbar /> -->
@@ -13,45 +14,8 @@
 
           <v-container fluid class="py-0">
             <v-row justify="center" class="my-2">
-              <v-col cols="6" md="4">
-                <!-- 프론트 접근 설정 -->
-                <v-dialog v-if="mode === 'view'" v-model="showFrontDialog" width="500">
-                  <template v-slot:activator="{ on }">
-                    <v-btn color="red lighten-2" dark v-on="on">
-                      화면 접근 설정&nbsp;
-                      <b>[{{isBlockFront ? 'ON' : 'OFF'}}]</b>
-                    </v-btn>
-                  </template>
-
-                  <v-card flat>
-                    <v-card-title class="headline grey lighten-2" primary-title>화면 접근 설정</v-card-title>
-                    <v-card-text>
-                      <v-container fluid>
-                        <v-row justify="center">
-                          <v-switch inset color="error" v-model="frontSwitch" :label="'ON'">
-                            <template #prepend>
-                              <v-label>OFF</v-label>
-                            </template>
-                          </v-switch>
-                        </v-row>
-                        <p class="text-center">
-                          <v-icon style="color:red;">mdi-alert-outline</v-icon>
-                          <b>[ON]</b> 으로 변경 시 홈페이지 상담 예약 신청 화면에
-                          <br />사용자는 접근할 수 없습니다.
-                        </p>
-                      </v-container>
-                    </v-card-text>
-                    <v-divider></v-divider>
-
-                    <v-card-actions>
-                      <v-btn text @click="showFrontDialog = false">취소</v-btn>
-                      <v-spacer></v-spacer>
-                      <v-btn color="primary" text @click="changeFrontSwitch">확인</v-btn>
-                    </v-card-actions>
-                  </v-card>
-                </v-dialog>
-              </v-col>
-              <v-col cols="12" sm="6" md="6">
+              <v-col cols="6" md="4"></v-col>
+              <v-col cols="12" sm="6" md="5">
                 <v-icon
                   class="ma-1 mdi-36px"
                   v-if="mode === 'view'"
@@ -68,7 +32,24 @@
                   @click="nextWeek()"
                 >mdi-chevron-right</v-icon>
               </v-col>
-              <v-col cols="6" md="2">
+              <v-col cols="6" md="3" class="text-center">
+                <!-- 월간 데이터 보기 -->
+                <v-btn
+                  class="ma-1"
+                  color="primary" dark
+                  v-if="mode === 'view'"
+                  @click="showMonthDialog = true"
+                >
+                  <v-icon class="ma-1 mdi-18px">mdi-calendar-blank</v-icon>월 단위 보기
+                </v-btn>
+                <CalendarMonth
+                  v-if="showMonthDialog"
+                  :showMonthDialog="showMonthDialog"
+                  :currentYear="todayYear"
+                  :currentMonth="todayMonth"
+                  :holidays="holidays"
+                  @closeDialog="showMonthDialog = false"
+                />
                 <!-- 수정 버튼 -->
                 <v-btn
                   class="ma-1"
@@ -76,12 +57,19 @@
                   v-if="mode === 'view'"
                   @click="changeEditMode('edit')"
                 >
-                  <v-icon class="mdi-18px">mdi-table-edit</v-icon>&nbsp;수정
+                  <v-icon class="mdi-18px">mdi-table-edit</v-icon>&nbsp;근무표 편집
                 </v-btn>
               </v-col>
             </v-row>
+            <v-row justify="center">
+              <b>크루 명단</b>&nbsp; [&nbsp;&nbsp;
+              <span
+                v-for="crew in crewList"
+                :key="'crewname_'+crew.name"
+              >{{crew.name}}({{crew.grade}})&nbsp;&nbsp;</span>]
+            </v-row>
 
-            <v-simple-table class="table-border" v-if="!isLoading">
+            <v-simple-table class="table-border">
               <template v-slot:default>
                 <tbody>
                   <tr class="table-header">
@@ -123,35 +111,44 @@
                     </template>
                   </tr>
 
-                  <tr v-for="(time, index) in times" :key="'time'+index">
-                    <td class="text-center">{{time.text}}</td>
-                    <td v-for="(counsel, key, idx) in dayCounselInfo" :key="'data'+counsel.ymd+idx">
-                      <v-form v-model="formValid" v-if="mode === 'edit'">
-                        <v-text-field
-                          type="number"
-                          min="0"
-                          :rules="[countRules.valid, countRules.count(counsel[time.type]['rCnt'])]"
-                          v-model="counsel[time.type]['count']"
-                          hide-details
-                          dense
-                          outlined
-                        ></v-text-field>
-                      </v-form>
-                      <p v-else class="text-center">{{ counsel[time.type]['count'] }}</p>
+                  <tr v-for="(job, index) in jobs" :key="'job_'+index">
+                    <td class="td-jobname">
+                      <span>{{job.name}}</span>
                     </td>
-                  </tr>
-
-                  <tr>
-                    <td class="text-center">1일 상담 건수</td>
-                    <td v-for="(dayCount, idx) in dayCounselCount" :key="'dayCount'+idx">
-                      <p class="text-center" v-text="dayCount"></p>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td class="text-center">주 상담 건수</td>
-                    <td colspan="7" align="center">
-                      <p class="text-center" v-text="weekCounselCount"></p>
+                    <td v-for="(data, key, idx) in crewData" :key="'day_'+idx">
+                      <!-- <template v-if="!!data[job.name] && data[job.name].length > 0"> -->
+                        <v-form v-model="formValid" v-if="mode === 'edit'">
+                          <v-text-field
+                            v-for="(d, i) in data[job.name]"
+                            :key="'input_'+i"
+                            type="text"
+                            name="crewName"
+                            :rules="crewInputRules"
+                            v-model="d['crewName']"
+                          >
+                            <v-icon
+                              slot="append"
+                              color="red"
+                              v-if="job.name === 'S.C' && i > 0 && data[job.name].length === (i + 1)"
+                              @click="handleAppend(key)"
+                            >mdi-plus</v-icon>
+                            <v-icon
+                              slot="prepend"
+                              color="green"
+                              v-if="job.name === 'S.C' && i > 0 && data[job.name].length === (i + 1)"
+                              @click="handlePrepend(key)"
+                            >mdi-minus</v-icon>
+                          </v-text-field>
+                        </v-form>
+                        <!-- <div v-else
+                          v-for="(d, i) in data[job.name]"
+                          :key="'button_'+d.crewName+'_'+i">
+                          <v-btn class="ma-2" outlined color="indigo" width="90px"
+                            v-if="!!d.crewName">
+                            {{d.crewName}}
+                          </v-btn>
+                        </div> -->
+                      <!-- </template> -->
                     </td>
                   </tr>
                 </tbody>
@@ -180,14 +177,11 @@
 
 <script>
 export default {
+  name: "CrewSchedule",
   data() {
     return {
       mode: "view",
-      formValid: false,
-      isLoading: true,
-      showFrontDialog: false, // 프론트 접근 설정 다이얼로그
-      isBlockFront: false, // 프론트 접근 제어 여부
-      frontSwitch: false, // 다이얼로그에서 스위치 선택 현황
+      formValid: false, // form validation
       snackbar: false,
       snackbar_color: "",
       snackbar_text: "",
@@ -200,28 +194,47 @@ export default {
       currentIdx: 0, // 주간 날짜 계산용
       dateStart: "",
       dateEnd: "",
-      days: [], // 주간 날짜
-      times: [
-        { text: "10:30 ~ 12:00", type: 1 },
-        { text: "13:00 ~ 14:30", type: 2 },
-        { text: "15:00 ~ 16:30", type: 3 },
-        { text: "17:00 ~ 18:30", type: 4 }
-      ],
-      countRules: {
-        valid: v => {
-          return (typeof Number.parseInt(v) === "number" && v > -1) || false;
-        },
-        count(rCnt) {
-          return v => v >= rCnt || "초과";
-        }
-      }, // 횟수 유효성 체크
+      days: [],
       holidays: [], // 휴일 데이터
-      dayCounselInfo: {}, // 날짜별 상담 데이터
-      tmpCounselInfo: {}, // 수정 페이지 리셋용
-      counselList: [] // DB 저장된 데이터
+      jobs: [
+        {
+          name: "Reception",
+          max: 1
+        },
+        {
+          name: "Garage",
+          max: 1
+        },
+        {
+          name: "Shop",
+          max: 1
+        },
+        {
+          name: "Multi",
+          max: 1
+        },
+        {
+          name: "S.C",
+          max: 4
+        }
+      ],
+      crewList: [],
+      baseModel: {
+        crewName: null
+      },
+      crewData: {}, // 날짜별 크루 스케줄
+      tmpCrewData: {}, // 수정 페이지 리셋용
+      crewInputRules: [
+        value => {
+          return !value ||
+            this.crewList.findIndex(crew => crew.name === value) > -1
+            ? true
+            : "Invalid.";
+        }
+      ],
+      showMonthDialog: false // 월간 데이터 보기 다이얼로그
     };
   },
-
   computed: {
     navigations() {
       return [
@@ -230,73 +243,23 @@ export default {
           href: "/#/views/index"
         },
         {
-          text: "일정관리",
+          text: "크루관리",
           disabled: true
         },
         {
-          text: "상담 가능일자 설정",
+          text: "크루 근무표",
           disabled: true
         }
       ];
-    },
-    /**
-     * 1일 상담 건수 배열
-     */
-    dayCounselCount() {
-      let arr = [];
-      for (let [key, value] of Object.entries(this.dayCounselInfo)) {
-        let cnt = 0;
-        for (let [k, v] of Object.entries(value)) {
-          cnt += Number.parseInt(v.count);
-        }
-        arr.push(cnt);
-      }
-      return arr;
-    },
-    /**
-     * 주 상담 건수
-     */
-    weekCounselCount() {
-      let cur = 0;
-      return this.dayCounselCount.reduce((acc, cur) => acc + cur);
-    },
-    /**
-     * 현재 상담 데이터 존재 여부
-     */
-    isCounselData() {
-      return this.counselList && this.counselList.length > 0;
     }
   },
-
   created() {
-    this.calDate();
-    this.getFrontBlockStatus();
     this.holidays = this.$utils.getHolidays();
+    this.calDate();
   },
-
   methods: {
     accessMode() {
       return ["admin"];
-    },
-
-    /**
-     * 프론트 화면 접근 상태 가져오기
-     */
-    getFrontBlockStatus() {
-      this.$sendApi("/code/counselOnOff")
-        .then(response => {
-          if (response.data && response.data.isSuccess) {
-            const flag = response.data.code.value === "ON" ? true : false;
-            // 접근 설정 flag
-            this.isBlockFront = flag;
-            // 다이얼로그용
-            this.frontSwitch = flag;
-          }
-        })
-        .catch(error => {
-          console.log("ERROR::", error);
-          this.openSnackbar(0, "화면 접근 상태 조회 중 오류가 발생했습니다.");
-        });
     },
 
     /**
@@ -324,22 +287,36 @@ export default {
         });
       }
       this.days = days;
-      this.getCounselData();
+      this.getCrewData();
     },
 
     /**
-     * 상담 데이터 가져오기
+     * 크루 스케줄 데이터 가져오기
      */
-    getCounselData() {
-      const data = {
-        bgnDt: this.dateStart,
-        endDt: this.dateEnd
-      };
-      this.$sendApi("/counsel/counselList", data)
+    getCrewScheduleData() {
+      this.$sendApi("/crew/crewSchedule", {})
         .then(response => {
           if (response.data.isSuccess == true) {
-            // console.log(response.data)
-            this.counselList = response.data.counselList;
+            console.log(response.data);
+            // this.crewList = response.data.crewList;
+            // this.fetchData();
+          }
+        })
+        .catch(error => {
+          console.log("ERROR::", error);
+          this.openSnackbar(0, "데이터 조회 중 오류가 발생했습니다.");
+        });
+    },
+
+    /**
+     * 크루 데이터 가져오기
+     */
+    getCrewData() {
+      this.$sendApi("/crew/crewList", {})
+        .then(response => {
+          if (response.data.isSuccess == true) {
+            console.log(response.data);
+            this.crewList = response.data.crewList;
             this.fetchData();
           }
         })
@@ -361,49 +338,44 @@ export default {
         day.type = type;
         return day;
       });
-      this.createCounselInfo();
+      this.createDataSet();
     },
 
     /**
-     * 카운셀 데이터 초기값 설정
+     * 근무표 데이터 초기값 설정
      */
-    createCounselInfo() {
+    createDataSet: function() {
       let dataMap = {};
       this.days.forEach(day => {
         let dayData = {};
-        this.times.forEach((time, index) => {
-          let count = 0;
-          let rCnt = 0;
-          // 수정화면에서 데이터 없을 경우에만 초기 데이터 셋팅
-          if (this.mode === "edit" && !this.isCounselData) {
-            if (day.type === "D" && index > 1) count = 2;
-            if (day.type === "W" && index > 0) count = 3;
-          } else if (this.isCounselData) {
-            const data = this.counselList.filter(d => {
-              return d.counselDay === day.ymd && d.timePeriod === index + 1;
-            })[0];
-            if (data) {
-              count =
-                Number.parseInt(data.aCnt) + Number.parseInt(data.rCnt) || 0;
-              rCnt = Number.parseInt(data.rCnt) || 0;
-            }
+        this.jobs.forEach(job => {
+          let jobData = [];
+          for (let idx = 0; idx < job.max; idx++) {
+            // if (day.type === "H") continue;
+            if (job.name === "S.C" && day.type !== "W" && idx > 1) continue;
+            jobData.push(Object.assign({}, this.baseModel));
           }
-
-          dayData[time.type] = {
-            count: count,
-            rCnt: rCnt // 현재 예약되어있는 개수
-          };
+          dayData[job.name] = jobData;
         });
         dataMap[day.ymd] = dayData;
       });
-      this.dayCounselInfo = dataMap;
-      this.isLoading = false;
+      this.crewData = dataMap;
+    },
+
+    handleAppend: function(day) {
+      this.crewData[day]["S.C"].push(Object.assign({}, this.baseModel));
+    },
+    handlePrepend: function(day) {
+      this.crewData[day]["S.C"].splice(this.crewData[day]["S.C"].length - 1, 1);
     },
 
     /**
-     * 상담 가능 일자 설정 저장
+     * 크루 근무표 저장
      */
     save() {
+      this.mode = "view";
+      return;
+
       // validation
       if (!this.formValid) {
         this.openSnackbar(0, "데이터를 확인해주세요.");
@@ -440,39 +412,14 @@ export default {
         });
     },
 
-    /**
-     * 프론트 화면 접근 설정 변경
-     */
-    changeFrontSwitch() {
-      const params = {
-        field: "ON_OFF",
-        type: "COUNSEL",
-        value: this.frontSwitch ? "ON" : "OFF"
-      };
-      this.$sendApi("/code/counselOnOffProc", params)
-        .then(response => {
-          if (response.data.isSuccess == true) {
-            // console.log(response.data);
-            this.mode = "view";
-            this.openSnackbar(1, "Success");
-            this.getFrontBlockStatus();
-            this.showFrontDialog = false;
-          }
-        })
-        .catch(error => {
-          console.log("ERROR::", error);
-          this.openSnackbar(0, "데이터 저장 중 오류가 발생했습니다.");
-        });
-    },
-
     prevWeek() {
       // 2020년 6월 서비스 개시로 그 전으로는 이동 불가
-      if (
-        Number.parseInt(this.todayYear) <= 2020 &&
-        Number.parseInt(this.todayMonth) <= 5
-      ) {
-        return;
-      }
+      // if (
+      //   Number.parseInt(this.todayYear) <= 2020 &&
+      //   Number.parseInt(this.todayMonth) <= 5
+      // ) {
+      //   return;
+      // }
       this.currentIdx -= 7;
       this.calDate();
     },
@@ -483,7 +430,7 @@ export default {
     },
 
     resetData() {
-      this.dayCounselInfo = _.cloneDeep(this.tmpCounselInfo);
+      this.crewData = _.cloneDeep(this.tmpCrewData);
     },
 
     changeEditMode(mode) {
@@ -492,8 +439,8 @@ export default {
         this.resetData();
       } else {
         // 초기화할 데이터 저장
-        this.tmpCounselInfo = _.cloneDeep(this.dayCounselInfo);
-        this.createCounselInfo();
+        this.tmpCrewData = _.cloneDeep(this.crewData);
+        this.createDataSet();
       }
     },
 
@@ -513,7 +460,7 @@ export default {
 };
 </script>
 
-<style scoped>
+<style type="text/css" scoped>
 .table-header {
   background-color: #eeeeee;
   width: 200px;
@@ -522,5 +469,12 @@ export default {
 }
 .table-border {
   border: 1px solid #eeeeee !important;
+}
+.td-jobname {
+  font-weight: bold;
+  text-align: center;
+}
+div >>> .error--text {
+  color: red;
 }
 </style>

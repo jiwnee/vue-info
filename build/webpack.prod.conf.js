@@ -108,6 +108,9 @@ const webpackConfig = merge(baseWebpackConfig, {
       minChunks: 3
     }),
 
+    // moment ko locale
+    new webpack.ContextReplacementPlugin(/moment[\/\\]locale$/, /ko/),
+
     // copy custom static assets
     new CopyWebpackPlugin([
       {
